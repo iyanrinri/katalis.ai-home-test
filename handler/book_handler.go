@@ -53,24 +53,42 @@ func BooksHandler(w http.ResponseWriter, r *http.Request) {
 		var b entity.Book
 		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
+			response := map[string]interface{}{
+				"message": "Invalid request body",
+			}
+			json.NewEncoder(w).Encode(response)
 			return
 		}
 		// validasi
 		if b.ISBN == "" {
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("ISBN is required"))
+			response := map[string]interface{}{
+				"message": "ISBN is required",
+			}
+			json.NewEncoder(w).Encode(response)
 			return
 		}
 		if !service.CreateBook(b) {
-			w.WriteHeader(http.StatusConflict)
-			w.Write([]byte("ISBN must be unique"))
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			response := map[string]interface{}{
+				"message": "ISBN must be unique",
+			}
+			json.NewEncoder(w).Encode(response)
+			go func(msg string) { middleware.LogCh <- msg }("ISBN must be unique " + b.ISBN)
 			return
 		}
 		go func(msg string) { middleware.LogCh <- msg }("Book created: " + b.ISBN)
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(b)
 	default:
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusMethodNotAllowed)
+		response := map[string]interface{}{
+			"message": "Method not allowed",
+		}
+		json.NewEncoder(w).Encode(response)
 	}
 }
 
@@ -78,6 +96,10 @@ func BookByISBNHandler(w http.ResponseWriter, r *http.Request) {
 	isbn := strings.TrimPrefix(r.URL.Path, "/books/")
 	if isbn == "" {
 		w.WriteHeader(http.StatusBadRequest)
+		response := map[string]interface{}{
+			"message": "ISBN is required",
+		}
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -86,6 +108,10 @@ func BookByISBNHandler(w http.ResponseWriter, r *http.Request) {
 		b, ok := service.GetBook(isbn)
 		if !ok {
 			w.WriteHeader(http.StatusNotFound)
+			response := map[string]interface{}{
+				"message": "No book found with ISBN: " + isbn,
+			}
+			json.NewEncoder(w).Encode(response)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -94,16 +120,28 @@ func BookByISBNHandler(w http.ResponseWriter, r *http.Request) {
 		var b entity.Book
 		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
+			response := map[string]interface{}{
+				"message": "Invalid request body",
+			}
+			json.NewEncoder(w).Encode(response)
 			return
 		}
 		if !service.UpdateBook(isbn, b) {
 			w.WriteHeader(http.StatusNotFound)
+			response := map[string]interface{}{
+				"message": "No book found with ISBN: " + isbn,
+			}
+			json.NewEncoder(w).Encode(response)
 			return
 		}
 		json.NewEncoder(w).Encode(b)
 	case http.MethodDelete:
 		if !service.DeleteBook(isbn) {
 			w.WriteHeader(http.StatusNotFound)
+			response := map[string]interface{}{
+				"message": "No book found with ISBN: " + isbn,
+			}
+			json.NewEncoder(w).Encode(response)
 			return
 		}
 		go func(msg string) { middleware.LogCh <- msg }("Book deleted: " + isbn)
@@ -113,6 +151,11 @@ func BookByISBNHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		json.NewEncoder(w).Encode(response)
 	default:
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusMethodNotAllowed)
+		response := map[string]interface{}{
+			"message": "Method not allowed",
+		}
+		json.NewEncoder(w).Encode(response)
 	}
 }
