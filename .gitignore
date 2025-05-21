@@ -1,0 +1,6 @@
+storage/logs/*
+.env
+.idea
+.vscode
+.DS_Store
+Thumbs.db

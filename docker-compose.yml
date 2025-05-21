@@ -1,0 +1,9 @@
+services:
+  home-test-app:
+    build: .
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    container_name: katalist-ai.home-test
+    ports:
+      - "8080:8080"
+    restart: always
